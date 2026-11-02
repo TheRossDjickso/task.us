@@ -21,3 +21,8 @@ npm-debug.log*
 .env.*
 !.env.example
 firebase-service-account.json
+
+# Configuration Firebase du client (à récupérer depuis la console Firebase)
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart

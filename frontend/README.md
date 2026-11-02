@@ -1,10 +1,12 @@
-# Col To Do — Frontend (Flutter)
+# Task Us — Frontend (Flutter)
 
-Application cliente du monorepo **Col To Do**.
+Application mobile du monorepo **Task Us** (Flutter, MVVM + Riverpod).
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-Toute la documentation (installation, adresse de l'API selon la plateforme, commandes) se trouve dans le [README principal](../README.md#frontend).
+Avant le premier lancement, placer `google-services.json` dans `android/app/`.
+
+Toute la documentation (fonctionnalités, architecture, charte graphique, Firebase, adresse de l'API) se trouve dans le [README principal](../README.md#frontend).

@@ -1,6 +1,6 @@
-# Col To Do — Backend (API)
+# Task Us — Backend (API)
 
-API REST + Socket.IO du monorepo **Col To Do** (Node.js, TypeScript, Express, Sequelize, PostgreSQL).
+API REST + Socket.IO du monorepo **Task Us** (Node.js, TypeScript, Express, Sequelize, PostgreSQL).
 
 ```bash
 cp .env.example .env

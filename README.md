@@ -6,8 +6,27 @@ Ce dépôt est un **monorepo** qui regroupe :
 
 | Dossier | Rôle | Stack |
 | --- | --- | --- |
-| [`frontend/`](frontend) | Application cliente (mobile, web, desktop) | Flutter / Dart |
+| [`frontend/`](frontend) | Application mobile | Flutter / Dart, Riverpod, Dio, Firebase Cloud Messaging |
 | [`backend/`](backend) | API REST + temps réel | Node.js, TypeScript, Express 5, Sequelize, PostgreSQL, Socket.IO |
+
+---
+
+## Aperçu
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/splash.webp" alt="Écran de démarrage" width="200"></td>
+    <td align="center"><img src="docs/screenshots/register.webp" alt="Inscription" width="200"></td>
+    <td align="center"><img src="docs/screenshots/dashboard.webp" alt="Tableau des tâches" width="200"></td>
+    <td align="center"><img src="docs/screenshots/task-details.webp" alt="Détails d'une tâche" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Démarrage</b></td>
+    <td align="center"><b>Inscription</b></td>
+    <td align="center"><b>Tableau des tâches</b><br><sub>To Do / Done, priorité, échéance</sub></td>
+    <td align="center"><b>Détails d'une tâche</b><br><sub>membres, commentaires, validation</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -28,6 +47,11 @@ Ce dépôt est un **monorepo** qui regroupe :
    - [Pièces jointes](#pièces-jointes)
    - [Format des erreurs](#format-des-erreurs)
 5. [Frontend](#frontend)
+   - [Fonctionnalités](#fonctionnalités)
+   - [Architecture (MVVM + Riverpod)](#architecture-mvvm--riverpod)
+   - [Charte graphique](#charte-graphique)
+   - [Configuration Firebase](#configuration-firebase)
+   - [Adresse de l'API](#adresse-de-lapi)
 6. [Conventions et contribution](#conventions-et-contribution)
 7. [Dépannage](#dépannage)
 
@@ -40,6 +64,7 @@ Ce dépôt est un **monorepo** qui regroupe :
 ├── README.md               ← ce fichier
 ├── .gitignore              ← règles communes (OS, IDE, secrets)
 ├── .editorconfig
+├── docs/screenshots/       ← captures d'écran utilisées dans ce README
 │
 ├── backend/                ← API Node.js / TypeScript
 │   ├── src/
@@ -60,8 +85,9 @@ Ce dépôt est un **monorepo** qui regroupe :
 │   ├── package.json
 │   └── tsconfig.json
 │
-└── frontend/               ← application Flutter
-    ├── lib/main.dart
+└── frontend/               ← application Flutter (MVVM + Riverpod)
+    ├── lib/                ← code de l'app (models, services, viewmodels, views, utils)
+    ├── images/             ← logo et icônes
     ├── test/
     ├── android/ ios/ web/ linux/ macos/ windows/
     └── pubspec.yaml
@@ -136,8 +162,9 @@ Dans un autre terminal :
 
 ```bash
 cd frontend
+# placer google-services.json dans android/app/ (voir « Configuration Firebase »)
 flutter pub get
-flutter run                 # choisir un appareil : émulateur, Chrome, Linux…
+flutter run                 # sur un émulateur ou un téléphone Android
 ```
 
 ---
@@ -387,33 +414,105 @@ Codes courants : `400` validation, `401` non authentifié, `403` droits insuffis
 
 ## Frontend
 
-Application **Flutter** (`frontend/`) ciblant Android, iOS, Web, Linux, macOS et Windows.
+Application **Flutter** (`frontend/`), pensée d'abord pour le **mobile (Android)**. Elle consomme l'API REST du backend et reçoit les notifications push via Firebase.
 
-> **État actuel :** le projet est encore le squelette généré par `flutter create` (`lib/main.dart`). L'interface et la connexion à l'API restent à développer.
+### Fonctionnalités
 
-Commandes utiles (depuis `frontend/`) :
+- **Authentification** : inscription, connexion, session persistante (jeton JWT stocké dans `flutter_secure_storage`, déconnexion automatique sur une réponse 401)
+- **Projets** : liste, création (titre, description, couleur), suppression
+- **Tableau des tâches** : colonnes *To Do* / *Done*, priorité, échéance, case à cocher pour terminer
+- **Détails d'une tâche** : statut, description, membres, commentaires avec réponses, bouton « Valider la tâche »
+- **Membres** : invitation par e-mail, changement de rôle, retrait
+- **Inbox / notifications** : notifications in-app, badge de non-lus, acceptation ou refus des invitations
+- **Recherche** de tâches
+- **Paramètres**
+- **Notifications push** (Firebase Cloud Messaging) avec ouverture de l'écran concerné au clic
+
+Navigation principale (barre du bas) : **Projects · Search · Inbox · Settings**.
+
+### Stack
+
+| Besoin | Paquet |
+| --- | --- |
+| Gestion d'état | `flutter_riverpod` |
+| Requêtes HTTP | `dio` |
+| Stockage sécurisé du jeton | `flutter_secure_storage` |
+| Préférences locales | `shared_preferences` |
+| Notifications push | `firebase_core`, `firebase_messaging` |
+| Dates / formats | `intl` |
+| Sélection multiple | `multi_dropdown` |
+
+### Architecture (MVVM + Riverpod)
+
+```
+frontend/lib/
+├── main.dart              ← initialise Firebase et Riverpod, choisit Login ou MainLayout selon la session
+├── models/                ← objets métier immuables (Project, Task, Comment, Member, User, Notification)
+├── services/              ← accès aux données : un service par ressource de l'API
+│   ├── api_client.dart    ← instance Dio unique : URL de base, jeton JWT, gestion du 401
+│   ├── auth_service.dart, project_service.dart, task_service.dart,
+│   │   comment_service.dart, member_service.dart, notification_service.dart
+│   ├── push_notification_service.dart   ← FCM : permission, jeton appareil, réception
+│   └── secure_storage_service.dart
+├── viewmodels/            ← logique de présentation et état (Notifier / AsyncNotifier Riverpod)
+├── views/
+│   ├── screens/           ← écrans (login, register, projects, dashboard, task details, inbox…)
+│   └── widgets/           ← composants réutilisables (cartes, bottom sheet, modales, barre de navigation)
+└── utils/
+    ├── theme.dart         ← thème centralisé (palette ci-dessous)
+    └── navigation.dart    ← navigatorKey global (navigation depuis une notification)
+```
+
+Règle : les **vues** ne parlent qu'aux **viewmodels**, qui passent par les **services**. Aucun appel HTTP dans un widget.
+
+### Charte graphique
+
+Toutes les couleurs sont définies dans `lib/utils/theme.dart`. N'utiliser que celles-ci :
+
+| Nom | Hex | Usage |
+| --- | --- | --- |
+| Brilliance | `#FDFCFC` | Fond principal |
+| Violet Essence | `#E6E4E6` | Bordures, séparateurs, états désactivés |
+| Palladium | `#B1B1B1` | Textes et icônes secondaires |
+| Night Black | `#2F3035` | Texte principal, titres |
+| Precious Persimmon | `#F87941` | **Couleur primaire** : boutons, états actifs |
+| No Way Rosé | `#F9B095` | Couleur secondaire : badges, accents |
+
+Les règles complètes (architecture et palette) destinées aux assistants IA sont dans `frontend/.agents/rules/`.
+
+### Configuration Firebase
+
+L'application appelle `Firebase.initializeApp()` au démarrage : **la configuration Firebase est obligatoire** pour la lancer.
+
+- **Android** : placer le fichier `google-services.json` du projet Firebase dans `frontend/android/app/` (package `com.example.col_to_do`). Ce fichier est ignoré par Git : chaque développeur le récupère depuis la console Firebase (Paramètres du projet → Vos applications).
+- **iOS** : ajouter `GoogleService-Info.plist` dans `frontend/ios/Runner/` (pas encore fourni).
+- **Web / desktop** : non configurés pour Firebase pour l'instant ; l'application ne démarrera pas sur ces cibles sans options Firebase.
+
+Côté backend, le compte de service doit appartenir au **même projet Firebase** (voir [Notifications push](#notifications-push-firebase)).
+
+### Adresse de l'API
+
+L'URL est définie dans `lib/services/api_client.dart` :
+
+| Plateforme | URL utilisée |
+| --- | --- |
+| Émulateur Android | `http://10.0.2.2:3000` |
+| Web, iOS, desktop | `http://localhost:3000` |
+
+Pour un **téléphone Android physique**, remplacer `10.0.2.2` par l'adresse IP locale du PC (même réseau Wi-Fi). Le backend écoute sur `0.0.0.0`, il est donc joignable depuis le réseau local.
+
+### Commandes
+
+À lancer depuis `frontend/` :
 
 | Commande | Effet |
 | --- | --- |
 | `flutter pub get` | Installer les dépendances |
 | `flutter run` | Lancer sur l'appareil sélectionné |
-| `flutter run -d chrome` | Lancer dans le navigateur |
 | `flutter test` | Lancer les tests |
 | `flutter analyze` | Analyse statique (règles `flutter_lints`) |
-| `flutter build apk` | Générer un APK Android |
-| `flutter build web` | Générer la version web |
+| `flutter build apk --release` | Générer un APK Android |
 
-**Adresse de l'API selon la plateforme :**
-
-| Plateforme | URL de base à utiliser |
-| --- | --- |
-| Émulateur Android | `http://10.0.2.2:3000/api` |
-| Simulateur iOS / Web / Desktop | `http://localhost:3000/api` |
-| Téléphone physique | `http://<IP-locale-du-PC>:3000/api` (même réseau Wi-Fi) |
-
-Le backend écoute sur `0.0.0.0`, il est donc joignable depuis un téléphone du réseau local.
-
-Penser à aligner `FRONTEND_URL` dans `backend/.env` avec l'URL réelle du client (par exemple le port de `flutter run -d chrome --web-port 5173`).
 
 ---
 
@@ -429,7 +528,7 @@ Penser à aligner `FRONTEND_URL` dans `backend/.env` avec l'URL réelle du clien
   ```
 
 - Branches : `main` (stable), `feat/<sujet>`, `fix/<sujet>`.
-- Ne jamais commiter de secrets (`.env`, `firebase-service-account.json`) : seuls les fichiers `*.example` sont versionnés.
+- Ne jamais commiter de secrets ni de configuration Firebase (`.env`, `firebase-service-account.json`, `google-services.json`, `GoogleService-Info.plist`) : seuls les fichiers `*.example` sont versionnés.
 
 ### Initialiser le nouveau dépôt
 
@@ -451,5 +550,7 @@ git push -u origin main
 | `database "col_todo" does not exist` | Créer la base (`createdb col_todo`) puis `npm run db:migrate` |
 | `JWT_SECRET is not configured` | Renseigner `JWT_SECRET` dans `backend/.env` |
 | `Firebase Service Account file not found` | Avertissement normal si le push n'est pas configuré |
-| L'émulateur Android n'atteint pas l'API | Utiliser `10.0.2.2` au lieu de `localhost` |
+| L'émulateur Android n'atteint pas l'API | Vérifier que le backend tourne ; l'émulateur utilise `10.0.2.2` |
+| Le téléphone physique n'atteint pas l'API | Mettre l'IP locale du PC dans `lib/services/api_client.dart` |
+| L'app plante au démarrage (`Firebase.initializeApp`) | `google-services.json` manquant dans `frontend/android/app/` |
 | E-mail de réinitialisation non reçu | Vérifier les variables `SMTP_*` |

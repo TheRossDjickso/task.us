@@ -1,6 +1,6 @@
 {
-    "name": "col_to_do",
-    "short_name": "col_to_do",
+    "name": "Task.us",
+    "short_name": "Task.us",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
