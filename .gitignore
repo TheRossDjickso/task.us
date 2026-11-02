@@ -1,0 +1,23 @@
+# Règles communes au monorepo.
+# Chaque application garde aussi son propre .gitignore (frontend/.gitignore, backend/.gitignore).
+
+# Systèmes d'exploitation
+.DS_Store
+Thumbs.db
+
+# Éditeurs / IDE
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+
+# Secrets — ne jamais versionner
+.env
+.env.*
+!.env.example
+firebase-service-account.json
